@@ -320,7 +320,30 @@ for (const method of ["put", "patch"] as const) {
     const row = await c.env.DB.prepare(`SELECT * FROM notes WHERE id = ?`)
       .bind(id)
       .first<NoteRow>();
-    return c.json(serializeNote(row!, await getTagsForNote(c.env.DB, id)));
+    const tags = await getTagsForNote(c.env.DB, id);
+
+    // Keep FTS5 index in sync on content changes. notes.body may be stale
+    // if the caller sent a body update (that goes through the DO and flushes
+    // asynchronously), so prefer the intended value when we have it.
+    if (
+      parsed.data.title !== undefined ||
+      parsed.data.body !== undefined ||
+      parsed.data.tags !== undefined
+    ) {
+      await c.env.DB.prepare(
+        `UPDATE notes_fts SET title = ?, body = ?, tags = ?
+           WHERE rowid = (SELECT rowid FROM notes WHERE id = ?)`,
+      )
+        .bind(
+          parsed.data.title ?? row!.title,
+          parsed.data.body ?? row!.body,
+          tags.join(" "),
+          id,
+        )
+        .run();
+    }
+
+    return c.json(serializeNote(row!, tags));
   });
 }
 
@@ -334,17 +357,23 @@ app.delete("/:id", requireScope("write"), async (c) => {
   const now = new Date().toISOString();
 
   if (hard) {
-    // Permanent: also delete the DO state.
-    const res = await c.env.DB.prepare(
+    // Permanent. Order matters: capture the rowid first, drop the FTS row,
+    // then drop the note. The old code deleted from notes first, which made
+    // the subselect in the FTS DELETE find nothing.
+    const ex = await c.env.DB.prepare(
+      `SELECT rowid FROM notes WHERE id = ? AND user_id = ?`,
+    )
+      .bind(id, user_id)
+      .first<{ rowid: number }>();
+    if (!ex) throw NotFound("note not found");
+    await c.env.DB.prepare(`DELETE FROM notes_fts WHERE rowid = ?`)
+      .bind(ex.rowid)
+      .run();
+    await c.env.DB.prepare(
       `DELETE FROM notes WHERE id = ? AND user_id = ?`,
     )
       .bind(id, user_id)
       .run();
-    if (res.meta.changes === 0) throw NotFound("note not found");
-    await c.env.DB.prepare(`DELETE FROM notes_fts WHERE rowid = (SELECT rowid FROM notes WHERE id = ?)`)
-      .bind(id)
-      .run()
-      .catch(() => {});
     // DO storage cleanup is best-effort — a future sweep alarm could
     // reap orphaned DO state. For now, we don't block.
     return c.body(null, 204);
