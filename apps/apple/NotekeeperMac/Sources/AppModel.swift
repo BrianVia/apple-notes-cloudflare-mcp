@@ -6,7 +6,7 @@ import NotekeeperCore
 @MainActor
 final class AppModel: ObservableObject {
     @Published var client: APIClient?
-    @Published var endpoint: String = "https://notekeeper.brian-via.workers.dev"
+    @Published var endpoint: String = "https://notekeeper-prod.brian-via.workers.dev"
     @Published var apiKey: String = ""
     @Published var notes: [Note] = []
     @Published var selectedId: String?
