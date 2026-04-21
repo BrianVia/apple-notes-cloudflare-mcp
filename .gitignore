@@ -3,3 +3,11 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# Swift / Xcode
+apps/apple/**/*.xcodeproj
+apps/apple/**/*.xcworkspace
+apps/apple/**/.build/
+apps/apple/**/.swiftpm/
+apps/apple/**/DerivedData/
+apps/apple/**/Package.resolved
