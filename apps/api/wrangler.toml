@@ -7,16 +7,16 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "notekeeper"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "2e5788eb-3592-48b0-a4db-d251ba460d66"
 migrations_dir = "../../migrations"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_YOUR_KV_ID"
+id = "f329bf44dae745c7a31d2ed5996ed179"
 
 [[r2_buckets]]
 binding = "ATTACHMENTS"
-bucket_name = "notekeeper-attachments"
+bucket_name = "brianvia-notekeeper-attachments"
 
 # Durable Object — one instance per note. Handles Yjs sync over WebSocket
 # and periodically flushes markdown + metadata into D1.
@@ -40,16 +40,16 @@ name = "notekeeper-prod"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "notekeeper-prod"
-database_id = "REPLACE_WITH_PROD_D1_ID"
+database_id = "3a4ce9e5-e131-46a6-8890-ed003906c9e0"
 migrations_dir = "../../migrations"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_PROD_KV_ID"
+id = "69db83dc707e4c7e95478a437a746631"
 
 [[env.production.r2_buckets]]
 binding = "ATTACHMENTS"
-bucket_name = "notekeeper-attachments-prod"
+bucket_name = "brianvia-notekeeper-attachments-prod"
 
 [[env.production.durable_objects.bindings]]
 name = "NOTE_DO"
