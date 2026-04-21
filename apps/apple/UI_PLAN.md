@@ -69,7 +69,7 @@ then commit to the next. That cadence is deliberate — the trap with an
 "Apple Notes clone" is building the whole thing in one 3-week push and
 discovering in week four that the editor doesn't feel right.
 
-### Phase 1 — Shell & visual language (est. 1 sitting)
+### Phase 1 — Shell & visual language (est. 1.5 sittings)
 
 **What to build**
 
@@ -79,37 +79,46 @@ discovering in week four that the editor doesn't feel right.
   - Detail: editor
 - Apply `.listStyle(.sidebar)` to the first column,
   `.listStyle(.inset)` to the middle.
-- `.background(.ultraThinMaterial)` on the sidebar; verify it shows through
-  the window.
-- `.windowToolbarStyle(.unified)` + `.windowStyle(.titleBar)` for the
-  modern titlebar.
+- **Translucent titlebar, sidebar extends to top.**
+  - `.windowStyle(.hiddenTitleBar)` on the `WindowGroup`.
+  - `.toolbarBackground(.hidden, for: .windowToolbar)` on the root view.
+  - `.background(.ultraThinMaterial)` on the sidebar — verify the
+    material reads up through the traffic-light area in both light and
+    dark modes before sign-off.
+- **Multi-window support.** Add a secondary scene for single-note
+  windows:
+
+  ```swift
+  WindowGroup("Note", for: Note.ID.self) { $noteID in
+      if let id = noteID { NoteWindowView(noteID: id) }
+  }
+  ```
+
+  A `NoteWindowView` renders just the editor, no sidebar, no list.
+  ⌥⌘N and the context-menu item call `@Environment(\.openWindow)` with
+  the note ID. Shared `AppModel` via `@EnvironmentObject`.
 - SF Pro throughout — macOS uses it by default, but pin sizes explicitly:
   - Note title: `.system(size: 22, weight: .semibold)`
   - Body: `.system(size: 16)`
   - Metadata: `.system(size: 11)` + `.secondary`
-- Design tokens in a `Theme.swift`:
+- Design tokens in a `Theme.swift`, with light + dark variants from
+  day 1 (dark-mode bugs found late are painful to track):
 
   ```swift
   enum Theme {
       static let pinYellow = Color(red: 254/255, green: 206/255, blue: 79/255)   // #FECE4F
       static let sidebarLight = Color(red: 245/255, green: 245/255, blue: 247/255) // #F5F5F7
+      // Dark-mode sidebar bg comes from .ultraThinMaterial; no explicit token.
       static let listSelection = Color.accentColor.opacity(0.15)
   }
   ```
 
 **What it buys**
 
-The surface area is now big enough to tell whether the chrome feels right.
-If it doesn't, nothing else matters, so this comes first.
-
-**Open calls before starting**
-
-- Do you want the iPad-style full-height sidebar (sidebar extends to the
-  titlebar) or the classic macOS inset sidebar? Apple Notes uses the
-  full-height style. I'd go there.
-- Light mode and dark mode — derive both palettes up front or deal
-  with dark mode later? Recommendation: both, because dark-mode bugs
-  found late are painful to track down.
+The surface area is now big enough to tell whether the chrome feels right
+— including the translucent titlebar, which is the single most
+"Apple Notes vs. generic-SwiftUI" cue. If this doesn't feel right,
+nothing else matters, so this comes first.
 
 ### Phase 2 — Note list cell (est. 1 sitting)
 
@@ -146,9 +155,11 @@ This cell is what the user's eye hits hundreds of times a day. A 15%
 improvement here has more perceived-quality impact than any other single
 piece of UI.
 
-### Phase 3 — Inline markdown rendering in the editor (est. 2-3 sittings)
+### Phase 3 — Inline markdown rendering in the editor (est. 3-5 sittings)
 
 **This is the make-or-break phase.** Don't skip it, don't paper over it.
+Estimate bumped from the original 2-3 to 3-5 because the animated
+checkbox attachment (decision #4) is a proper sub-project.
 
 **The three real options**
 
@@ -199,9 +210,17 @@ drop in a custom `NSTextStorage` that re-stylizes on edit.
   - Forwards value changes as `Binding<String>` (markdown plaintext).
   - Handles ⌘B / ⌘I to toggle bold/italic syntax markers in selection.
 - Checkbox rendering: in `processEditing()`, when a line matches
-  `- [ ] ` or `- [x] `, replace the 5 characters with an NSTextAttachment
-  that draws a 14 pt circle (empty or filled-with-checkmark). Click the
-  attachment → toggle. This reads back out as plain markdown on save.
+  `- [ ] ` or `- [x] `, replace the 6 characters with a custom
+  `NSTextAttachment` subclass whose `attachmentCell` draws via a
+  `CALayer` — an empty circle with a 1 pt tertiary-gray stroke, or
+  a yellow-filled (#FECE4F) circle with an inset white checkmark.
+  Toggle animation: 200 ms `CABasicAnimation` on `backgroundColor`,
+  plus a 1.0 → 1.15 → 1.0 scale bounce via `CAKeyframeAnimation`.
+  Click the attachment → toggle; rewrite the underlying markdown
+  (`- [ ] ` ↔ `- [x] `) so the stored body stays portable. Click
+  dispatch: register a sentinel `notekeeper-checkbox://<range>` URL as
+  a link attribute on the attachment; intercept in
+  `NSTextView.clickedOnLink(at:)`.
 
 **Risks / open questions**
 
@@ -215,7 +234,7 @@ drop in a custom `NSTextStorage` that re-stylizes on edit.
 - A 3-sitting estimate is optimistic. Budget 5 if it's your first time
   inside `NSTextStorage`.
 
-### Phase 4 — Sidebar: folders tree, smart lists, trash (est. 1-2 sittings)
+### Phase 4 — Sidebar: folders tree, smart lists, trash (est. 2 sittings)
 
 **What to build**
 
@@ -245,6 +264,16 @@ Trash               2
   `?pinned=true` server param.
 - "Trash" is `listNotes({ trashed: true })`.
 - Drag a note between folders: `updateNote(id, .init(folderId: …))`.
+- **Inline folder create & rename** (per decision #5):
+  - Right-click sidebar → `New Folder` → inserts an editable
+    `TextField` row whose state lives on `AppModel.pendingFolder`.
+    Auto-focus via `@FocusState`. ↵ commits (`POST /v1/folders` with
+    the typed name + current `parent_id`). ⎋ or focus-loss cancels
+    and removes the row.
+  - Double-click a folder row → replaces the `Text` with a
+    pre-populated `TextField`. ↵ commits (`PATCH /v1/folders/:id`).
+  - The cancel-on-blur path is the fiddly part — use `.onSubmit` for
+    the commit and `.onChange(of: isFocused)` for the cancel.
 
 **What to build on the server**
 
@@ -327,29 +356,70 @@ After it lands, it's a collaborative editor.
 
 ---
 
-## Open design questions
+## Design decisions
 
-These are decisions I want your input on before the phases are spent.
+All five resolved in favor of Apple Notes parity, regardless of
+development cost.
 
-1. **One window or many?** Apple Notes has a "Notes" main window + lets you
-   "Open Note in New Window" for a distraction-free editor. The extra window
-   needs a separate `WindowGroup(for: Note.ID)`. Small scope, meaningful UX
-   payoff. Yes/no?
-2. **Titlebar: transparent / translucent / standard?** Apple Notes uses
-   a translucent titlebar that extends the sidebar material into the title
-   region. I lean that way; flag if you want the classic macOS inset look.
-3. **Note title: derived from first line, or a separate first-class field?**
-   Current server derives title from the first non-empty markdown line
-   (`deriveTitle` in `apps/api/src/routes/notes.ts`). Clean, but means
-   you can't *edit* the title without editing the body's first line. Apple
-   Notes works this way. Stay with it, or add an explicit `title` field in
-   the UI that backs a `PATCH { title }` separate from body? I'd stay.
-4. **Checkbox UI**: toggleable bullet with smooth fill animation, or
-   a simple SF Symbol swap? Former looks premium; latter ships faster.
-5. **Folder creation UX**: inline "New Folder" row at the bottom of the
-   sidebar (click → rename-in-place), or a modal dialog? Apple Notes
-   uses the inline pattern; so should we, but the implementation is
-   fiddly — `TextField` with `.focused($isFocused)` pattern.
+1. **Multi-window: yes.** `⌥⌘N` opens the selected note in a dedicated
+   window, same as Apple Notes' "Open Note in New Window."
+   - Implementation: add a `WindowGroup(for: Note.ID.self)` secondary
+     scene in `NotekeeperMacApp`. Invoke via `@Environment(\.openWindow)`
+     from the context menu and the ⌥⌘N shortcut.
+   - Per-note window uses simplified chrome — no sidebar, just the
+     editor and title area. `AppModel` is shared via `@EnvironmentObject`
+     so edits in one window flow to the main list immediately. Once CRDT
+     sync lands (Phase 7), sync handles cross-window coherence naturally.
+   - Effort: +0.5 sitting, folded into Phase 1.
+
+2. **Titlebar: translucent, sidebar extends to the top.** The defining
+   Apple Notes chrome trick.
+   - Implementation: `.windowStyle(.hiddenTitleBar)` +
+     `.toolbarBackground(.hidden, for: .windowToolbar)` so the sidebar's
+     `.ultraThinMaterial` reads up through the traffic-light area.
+     Traffic lights take their default positioning (no inset offset).
+   - Verify on both light and dark modes before calling Phase 1 done —
+     translucency behavior differs and you'll see it before anyone else.
+   - Effort: already in Phase 1 as a sub-task; no estimate change.
+
+3. **Title from first line, single editor.** No separate title field.
+   The first non-empty line renders at title size (22 pt semibold);
+   subsequent lines are body.
+   - The server already derives `title` from the first non-empty line
+     (`deriveTitle` in `apps/api/src/routes/notes.ts:408-414`). No
+     server change needed; the client just renders it that way.
+   - `note.title` is used in list cells and window titles only; editing
+     "the title" means editing line 1 of the body. Integrates into
+     Phase 3's markdown tokenizer as one more rule: if line is the first
+     non-empty line and has no `#` prefix, treat as heading size.
+   - Effort: no delta — folded into Phase 3 work.
+
+4. **Animated toggleable circle for checkboxes.** Not SF Symbol swap.
+   Empty circle (1 pt tertiary-gray stroke) → yellow-filled with white
+   checkmark, 200 ms `CABasicAnimation` on `backgroundColor` + a 1.0 →
+   1.15 → 1.0 scale bounce on toggle.
+   - Implementation: custom `NSTextAttachment` subclass drawing via a
+     `CALayer`. Attached in place of literal `- [ ] ` / `- [x] ` text
+     by `MarkdownTextStorage` (Phase 3). Click handling routes through
+     `NSTextView`'s link-click mechanism with a sentinel URL scheme
+     like `notekeeper-checkbox://<paragraph-range>`.
+   - Toggling the checkbox writes `- [x] ` / `- [ ] ` back into the
+     underlying markdown, so the stored body stays plain markdown.
+   - Effort: +1 sitting to Phase 3. New estimate: **3-5 sittings for
+     Phase 3 total** (was 2-3).
+
+5. **Inline "New Folder" with rename-in-place.** Not a modal dialog.
+   - Right-click sidebar → `New Folder` inserts an empty row with an
+     auto-focused `TextField`. ↵ commits (`POST /v1/folders` with the
+     typed name + current `parent_id`), ⎋ or click-outside cancels and
+     removes the row.
+   - Same pattern covers **rename**: double-click a folder row →
+     `TextField` replaces the `Text`. ↵ commits (`PATCH /v1/folders/:id`).
+   - Uses `@FocusState` + a transient `PendingFolder` model in
+     `AppModel`. Not trivial UX (cancel-on-blur is the fiddly part), but
+     bounded scope.
+   - Effort: +0.5 sitting to Phase 4. New estimate: **2 sittings**
+     (was 1-2).
 
 ---
 
@@ -359,15 +429,19 @@ If I were you, this is the order I'd actually run these phases, with
 what you'd learn at each milestone:
 
 ```
-Phase 1 — visual language                    → does this look like a Notes app yet?
-Phase 2 — note list cell                     → does scrolling the list feel premium?
-Phase 3 — inline markdown rendering          → does editing feel like Notes, or like VSCode?
-Phase 4 — sidebar & folders                  → does navigating a real workspace work?
-Phase 5 — shortcuts & context menus          → does the keyboard get out of your way?
-Phase 6 — search UI                          → can I actually find anything?
-Phase 7 — CRDT sync                          → does it feel live & offline-safe?
-Phase 8 — polish                             → continuously
+Phase 1 — visual language       (~1.5 sittings) → does this look like a Notes app yet?
+Phase 2 — note list cell        (~1 sitting)    → does scrolling the list feel premium?
+Phase 3 — inline markdown        (3-5 sittings) → does editing feel like Notes, or like VSCode?
+Phase 4 — sidebar & folders     (~2 sittings)   → does navigating a real workspace work?
+Phase 5 — shortcuts / menus     (~1 sitting)    → does the keyboard get out of your way?
+Phase 6 — search UI             (~1 sitting)    → can I actually find anything?
+Phase 7 — CRDT sync             (2-4 sittings)  → does it feel live & offline-safe?
+Phase 8 — polish                 (ongoing)      → continuously
 ```
+
+Rough total through Phase 7: **12–16 sittings**. If a sitting is
+~3 focused hours, that's ~36–48 hours of keyboard time, likely
+stretched across 3–5 weeks of evenings.
 
 The trap is attacking Phase 7 (CRDT) first because it's the most
 technically interesting. Resist. A pretty fetch-and-PATCH app is more
