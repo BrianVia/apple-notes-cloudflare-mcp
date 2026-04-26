@@ -49,6 +49,11 @@ export class NoteDO implements DurableObject {
   private sessions = new Set<Session>();
   private loaded = false;
   private dirty = false;
+  /// When true, the next Y.Doc update event won't mark the DO dirty or
+  /// schedule a flush. Used for initial-seed writes where the D1 row is
+  /// already authoritative — prevents the flush alarm from overwriting
+  /// created_at/updated_at we just persisted.
+  private suppressDirty = false;
   private lastFlushAt = 0;
   private noteId: string | null = null;
   private userId: string | null = null;
@@ -61,8 +66,12 @@ export class NoteDO implements DurableObject {
     // Persist state changes locally. This is cheap (DO-local SQLite) and
     // survives evictions.
     this.doc.on("update", (update: Uint8Array, _origin: unknown) => {
-      this.dirty = true;
+      // Always persist yjs_state so the DO survives evictions with the
+      // current text. Only mark dirty / schedule a D1 flush for edits that
+      // came from a real caller — silent seeds set suppressDirty=true.
       this.state.storage.put("yjs_state", Y.encodeStateAsUpdate(this.doc));
+      if (this.suppressDirty) return;
+      this.dirty = true;
       this.scheduleFlush();
     });
   }
@@ -105,15 +114,23 @@ export class NoteDO implements DurableObject {
     return this.doc.getText("body").toString();
   }
 
-  /** Replace the entire body (REST PUT /notes/:id). */
-  async setBody(body: string): Promise<void> {
+  /** Replace the entire body (REST PUT /notes/:id). Pass `silent: true`
+   *  when the caller has already written the body to D1 and only wants the
+   *  DO's Y.Doc primed for future WS clients — that path skips the flush
+   *  alarm so it can't overwrite preserved created_at/updated_at. */
+  async setBody(body: string, { silent = false }: { silent?: boolean } = {}): Promise<void> {
     await this.ensureLoaded();
     const ytext = this.doc.getText("body");
-    this.doc.transact(() => {
-      ytext.delete(0, ytext.length);
-      ytext.insert(0, body);
-    }, "rest");
-    // update handler fires → schedules flush
+    const prev = this.suppressDirty;
+    this.suppressDirty = silent;
+    try {
+      this.doc.transact(() => {
+        ytext.delete(0, ytext.length);
+        ytext.insert(0, body);
+      }, "rest");
+    } finally {
+      this.suppressDirty = prev;
+    }
   }
 
   /** Schedule the next D1 flush via DO alarm. */
@@ -142,10 +159,16 @@ export class NoteDO implements DurableObject {
     const now = new Date().toISOString();
 
     try {
+      // Only touch updated_at when the body (or title) actually changed. A
+      // DO that's `dirty=true` but whose Y.Doc already matches D1 — e.g.
+      // after a silent seed followed by eviction cycles — must not bump
+      // timestamps on every alarm fire. The `body != ?` predicate makes the
+      // flush idempotent under that race.
       await this.env.DB.prepare(
-        `UPDATE notes SET title = ?, body = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+        `UPDATE notes SET title = ?, body = ?, updated_at = ?
+         WHERE id = ? AND user_id = ? AND (body != ? OR title != ?)`,
       )
-        .bind(title, body, now, this.noteId, this.userId)
+        .bind(title, body, now, this.noteId, this.userId, body, title)
         .run();
 
       // Keep FTS in sync. FTS5 external-content requires manual updates.
@@ -188,7 +211,8 @@ export class NoteDO implements DurableObject {
 
     if (url.pathname === "/body" && request.method === "PUT") {
       const body = await request.text();
-      await this.setBody(body);
+      const silent = url.searchParams.get("silent") === "1";
+      await this.setBody(body, { silent });
       return new Response(null, { status: 204 });
     }
 

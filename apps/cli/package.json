@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@notekeeper/shared": "workspace:*",
+    "@types/turndown": "^5.0.6",
     "commander": "^12.1.0",
-    "kleur": "^4.1.5"
+    "kleur": "^4.1.5",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",

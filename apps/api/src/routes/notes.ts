@@ -183,6 +183,12 @@ app.post("/", requireScope("write"), async (c) => {
   const now = new Date().toISOString();
   const noteBody = parsed.data.body ?? "";
   const title = parsed.data.title ?? deriveTitle(noteBody);
+  // Import-time timestamp preservation. When a caller (e.g. `nk import`)
+  // passes created_at/updated_at, honor them so history survives the round
+  // trip. No auth gate beyond requireScope("write") since the key owner is
+  // already trusted to write any notes they want.
+  const created_at = parsed.data.created_at ?? now;
+  const updated_at = parsed.data.updated_at ?? now;
 
   await c.env.DB.prepare(
     `INSERT INTO notes (id, user_id, folder_id, title, body, pinned, created_at, updated_at)
@@ -195,8 +201,8 @@ app.post("/", requireScope("write"), async (c) => {
       title,
       noteBody,
       parsed.data.pinned ? 1 : 0,
-      now,
-      now,
+      created_at,
+      updated_at,
     )
     .run();
 
@@ -218,7 +224,10 @@ app.post("/", requireScope("write"), async (c) => {
         body: JSON.stringify({ note_id: id, user_id }),
       });
       if (noteBody) {
-        await stub.fetch("https://do/body", { method: "PUT", body: noteBody });
+        // ?silent=1 — D1 already has the authoritative row. We're only
+        // seeding the DO's Y.Doc so future WS clients start with text.
+        // Without this, the flush alarm would stomp updated_at with now.
+        await stub.fetch("https://do/body?silent=1", { method: "PUT", body: noteBody });
       }
     })(),
   );
@@ -373,6 +382,15 @@ app.delete("/:id", requireScope("write"), async (c) => {
       `DELETE FROM notes WHERE id = ? AND user_id = ?`,
     )
       .bind(id, user_id)
+      .run();
+    // Record the tombstone so /v1/sync clients can drop their local copy.
+    // INSERT OR REPLACE keeps the most recent deletion timestamp if the same
+    // id was deleted, recreated, then deleted again.
+    await c.env.DB.prepare(
+      `INSERT OR REPLACE INTO tombstones (entity, id, user_id, deleted_at)
+       VALUES ('note', ?, ?, ?)`,
+    )
+      .bind(id, user_id, now)
       .run();
     // DO storage cleanup is best-effort — a future sweep alarm could
     // reap orphaned DO state. For now, we don't block.

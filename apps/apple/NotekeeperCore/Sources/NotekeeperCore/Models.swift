@@ -155,3 +155,35 @@ public struct SearchResponse: Codable, Sendable {
     public let query: String
     public let results: [SearchResult]
 }
+
+// MARK: - Sync (delta endpoint)
+
+public enum TombstoneEntity: String, Codable, Sendable {
+    case note
+    case folder
+}
+
+public struct Tombstone: Codable, Hashable, Sendable {
+    public let entity: TombstoneEntity
+    public let id: String
+    public let deletedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case entity, id
+        case deletedAt = "deleted_at"
+    }
+}
+
+public struct SyncResponse: Codable, Sendable {
+    public let notes: [Note]
+    public let folders: [Folder]
+    public let tags: [Tag]
+    public let deleted: [Tombstone]
+    public let serverTime: Date
+    public let truncated: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case notes, folders, tags, deleted, truncated
+        case serverTime = "server_time"
+    }
+}

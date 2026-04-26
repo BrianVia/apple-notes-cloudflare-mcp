@@ -9,6 +9,8 @@ import {
   registerSearchCommand,
   registerKeyCommands,
 } from "./cmd-misc";
+import { registerAppleNotesCommands } from "./cmd-apple-notes";
+import { registerImportCommands } from "./cmd-import";
 import { ApiError } from "./client";
 
 const program = new Command();
@@ -24,6 +26,8 @@ registerFolderCommands(program);
 registerTagCommands(program);
 registerSearchCommand(program);
 registerKeyCommands(program);
+registerAppleNotesCommands(program);
+registerImportCommands(program);
 
 // Global error handler — commander won't catch async rejections from actions.
 async function main() {

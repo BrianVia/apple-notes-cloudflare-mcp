@@ -1,20 +1,72 @@
 import SwiftUI
 import NotekeeperCore
 
+/// Three-column shell. The sidebar's `.ultraThinMaterial` reads up through
+/// the hidden titlebar, giving the classic Apple Notes translucency.
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var editorBus: EditorCommandBus
+    @Environment(\.openWindow) private var openWindow
+    @State private var searchText: String = ""
 
     var body: some View {
         NavigationSplitView {
+            SidebarView()
+                .navigationSplitViewColumnWidth(
+                    min: Theme.Layout.sidebarMinWidth,
+                    ideal: Theme.Layout.sidebarIdealWidth,
+                    max: Theme.Layout.sidebarMaxWidth
+                )
+        } content: {
             NoteListView()
-                .frame(minWidth: 260)
+                .navigationSplitViewColumnWidth(
+                    min: Theme.Layout.noteListMinWidth,
+                    ideal: Theme.Layout.noteListIdealWidth
+                )
         } detail: {
             NoteDetailView()
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                ConnectionControls()
+        // Keep the toolbar visible but transparent so it reads as a single
+        // unified surface with the sidebar's ultraThinMaterial below. This
+        // is the Apple Notes look: traffic lights + toolbar items on one row,
+        // sidebar material bleeding up behind the whole thing.
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .toolbar { mainToolbar }
+        .background {
+            // Hidden shortcut handlers. They live here instead of in
+            // .commands because CommandGroup content can't read
+            // @EnvironmentObject from the WindowGroup.
+            ZStack {
+                Button("") {
+                    if let id = model.selectedId {
+                        openWindow(value: id)
+                    }
+                }
+                .keyboardShortcut("n", modifiers: [.command, .option])
+
+                Button("") {
+                    Task { await model.refresh() }
+                }
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(model.client == nil)
+
+                // Inline-styling shortcuts. They used to live in the Format
+                // menu; moved here so the menu can stay aligned with the
+                // slash menu (which is purely block-level).
+                Button("") { editorBus.send(.toggleInline(.bold)) }
+                    .keyboardShortcut("b", modifiers: .command)
+                    .disabled(model.selectedId == nil)
+
+                Button("") { editorBus.send(.toggleInline(.italic)) }
+                    .keyboardShortcut("i", modifiers: .command)
+                    .disabled(model.selectedId == nil)
+
+                Button("") { editorBus.send(.insertLink) }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .disabled(model.selectedId == nil)
             }
+            .opacity(0)
+            .allowsHitTesting(false)
         }
         .alert("Error", isPresented: Binding(
             get: { model.errorMessage != nil },
@@ -25,200 +77,113 @@ struct RootView: View {
             Text(model.errorMessage ?? "")
         }
     }
-}
 
-struct ConnectionControls: View {
-    @EnvironmentObject private var model: AppModel
-    @State private var showConnectSheet = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(model.client != nil ? .green : .secondary)
-                .frame(width: 8, height: 8)
-            Text(model.status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if model.client == nil {
-                Button("Connect") { showConnectSheet = true }
-            } else {
-                Button("Disconnect") { model.disconnect() }
+    /// Window toolbar modeled after Apple Notes. Left cluster (near the
+    /// note-list column) holds compose; center cluster holds format tools
+    /// that operate on the editor; right cluster holds share/more/search.
+    ///
+    /// Every format action routes through `editorBus` — the active
+    /// `MarkdownTextView` subscribes in its Coordinator and applies the
+    /// command to whatever the caret/selection is on.
+    @ToolbarContentBuilder
+    private var mainToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button {
+                Task { await model.createDraft() }
+            } label: {
+                Image(systemName: "square.and.pencil")
             }
+            .help("New Note (⌘N)")
+            .disabled(model.client == nil)
         }
-        .sheet(isPresented: $showConnectSheet) {
-            ConnectSheet()
-        }
-    }
-}
 
-struct ConnectSheet: View {
-    @EnvironmentObject private var model: AppModel
-    @Environment(\.dismiss) private var dismiss
+        ToolbarItemGroup(placement: .principal) {
+            formatMenu
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Connect to Notekeeper")
-                .font(.headline)
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Endpoint").font(.caption).foregroundStyle(.secondary)
-                TextField("https://notekeeper.example.workers.dev", text: $model.endpoint)
-                    .textFieldStyle(.roundedBorder)
+            Button {
+                editorBus.send(.setBlock("- [ ] "))
+            } label: {
+                Image(systemName: "checklist")
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("API key").font(.caption).foregroundStyle(.secondary)
-                SecureField("nk_live_…", text: $model.apiKey)
-                    .textFieldStyle(.roundedBorder)
+            .help("Checklist (⇧⌘L)")
+            .keyboardShortcut("l", modifiers: [.command, .shift])
+            .disabled(model.selectedId == nil)
+
+            Button {
+                editorBus.send(.insertTable)
+            } label: {
+                Image(systemName: "tablecells")
             }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Connect") {
-                    Task {
-                        await model.connect()
-                        if model.client != nil { dismiss() }
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(model.isBusy)
+            .help("Table")
+            .disabled(model.selectedId == nil)
+
+            Button {
+                editorBus.send(.insertAttachment)
+            } label: {
+                Image(systemName: "paperclip")
             }
+            .help("Attachment")
+            .disabled(model.selectedId == nil)
         }
-        .padding(24)
-        .frame(width: 440)
-    }
-}
 
-struct NoteListView: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        List(selection: Binding(
-            get: { model.selectedId },
-            set: { model.selectedId = $0 }
-        )) {
-            if model.client == nil {
-                ContentUnavailableView(
-                    "Not connected",
-                    systemImage: "link.badge.plus",
-                    description: Text("Click Connect in the toolbar.")
-                )
-            } else if model.notes.isEmpty {
-                ContentUnavailableView(
-                    "No notes",
-                    systemImage: "note.text",
-                    description: Text("⌘N to create one.")
-                )
-            } else {
-                ForEach(model.notes) { note in
-                    NoteRowView(note: note).tag(note.id)
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .refreshable {
-            await model.refresh()
-        }
-    }
-}
-
-struct NoteRowView: View {
-    let note: Note
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(note.title.isEmpty ? "Untitled" : note.title)
-                    .font(.headline)
-                    .lineLimit(1)
-                if note.pinned {
-                    Image(systemName: "pin.fill")
-                        .foregroundStyle(.yellow)
-                        .font(.caption)
-                }
-            }
-            Text(snippet)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var snippet: String {
-        let stripped = note.body
-            .replacingOccurrences(of: "#", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return String(stripped.prefix(120))
-    }
-}
-
-struct NoteDetailView: View {
-    @EnvironmentObject private var model: AppModel
-    @State private var draftBody: String = ""
-    @State private var lastSavedBody: String = ""
-    @State private var lastLoadedId: String?
-
-    var body: some View {
-        Group {
+        ToolbarItemGroup(placement: .primaryAction) {
             if let note = model.selectedNote {
-                editor(for: note)
-            } else {
-                ContentUnavailableView(
-                    "No note selected",
-                    systemImage: "square.and.pencil",
-                    description: Text("Pick one from the sidebar or press ⌘N.")
-                )
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func editor(for note: Note) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(note.title.isEmpty ? "Untitled" : note.title)
-                    .font(.title2).bold()
-                Spacer()
-                Text(note.updatedAt, style: .relative)
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 20).padding(.vertical, 12)
-            Divider()
-            TextEditor(text: $draftBody)
-                .font(.body.monospaced())
-                .padding(8)
-                .onChange(of: note.id) { _, _ in
-                    draftBody = note.body
-                    lastSavedBody = note.body
-                    lastLoadedId = note.id
+                ShareLink(item: note.body,
+                          preview: SharePreview(note.title.isEmpty ? "Untitled" : note.title)) {
+                    Image(systemName: "square.and.arrow.up")
                 }
-                .onAppear {
-                    if lastLoadedId != note.id {
-                        draftBody = note.body
-                        lastSavedBody = note.body
-                        lastLoadedId = note.id
+                .help("Share")
+            }
+
+            Menu {
+                Button("Copy Link", systemImage: "link") {}.disabled(true)
+                Button("Move to Folder…", systemImage: "folder") {}.disabled(true)
+                Divider()
+                if let id = model.selectedId {
+                    Button("Move to Trash", systemImage: "trash") {
+                        Task { await model.trash(id: id) }
                     }
                 }
-                .onSubmit {
-                    save()
-                }
-            HStack {
-                if draftBody != lastSavedBody {
-                    Text("Unsaved changes").font(.caption).foregroundStyle(.orange)
-                }
-                Spacer()
-                Button("Save") { save() }
-                    .keyboardShortcut("s", modifiers: .command)
-                    .disabled(draftBody == lastSavedBody)
+            } label: {
+                Image(systemName: "ellipsis")
             }
-            .padding(.horizontal, 20).padding(.vertical, 10)
+            .menuIndicator(.hidden)
+            .help("More actions")
+
+            TextField("Search", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 180)
+                .keyboardShortcut("f", modifiers: .command)
         }
     }
 
-    private func save() {
-        let body = draftBody
-        Task {
-            await model.saveBody(body)
-            lastSavedBody = body
+    /// Format menu — mirrors the `/`-menu so there's one taxonomy of block
+    /// types across the app. Rendered as native macOS menu sections with
+    /// the right-aligned syntax hint (#, ##, -, [ ], 1.) as a monospaced
+    /// trailing label, so discoverability carries over from slash to click.
+    @ViewBuilder
+    private var formatMenu: some View {
+        Menu {
+            ForEach(SlashOption.groups) { group in
+                Section(group.title) {
+                    ForEach(group.options) { option in
+                        Button {
+                            editorBus.apply(option)
+                        } label: {
+                            if let symbol = option.iconSymbol {
+                                Label(option.title, systemImage: symbol)
+                            } else {
+                                Text(option.title)
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "textformat.size")
         }
+        .menuIndicator(.hidden)
+        .help("Format")
+        .disabled(model.selectedId == nil)
     }
 }

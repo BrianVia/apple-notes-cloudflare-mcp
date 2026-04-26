@@ -124,6 +124,25 @@ public actor APIClient {
         return response.tags
     }
 
+    // MARK: - Sync
+
+    /// Fetch the delta of changes since the given cursor. Pass `nil` on the
+    /// first call. Iterate until `truncated == false`, advancing `since` to
+    /// the previous response's `serverTime` each time.
+    public func sync(since: Date?, limit: Int = 500) async throws -> SyncResponse {
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: String(limit)),
+        ]
+        if let since {
+            // The server expects an ISO8601 string with fractional seconds —
+            // matches what its own `updated_at` columns use.
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            items.append(.init(name: "since", value: formatter.string(from: since)))
+        }
+        return try await request(SyncResponse.self, method: "GET", path: "/v1/sync", query: items)
+    }
+
     // MARK: - Search
 
     public func search(_ q: String, limit: Int = 25) async throws -> SearchResponse {

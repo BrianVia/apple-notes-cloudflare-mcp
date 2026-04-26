@@ -28,6 +28,11 @@ export const NoteCreateSchema = z.object({
   folder_id: IdSchema.nullable().optional(),
   tags: z.array(z.string().max(64)).optional().default([]),
   pinned: z.boolean().optional().default(false),
+  // When importing notes from another source (e.g., Apple Notes export),
+  // callers can preserve the original timestamps. Omitted ⇒ server sets both
+  // to "now" at create time.
+  created_at: TimestampSchema.optional(),
+  updated_at: TimestampSchema.optional(),
 });
 export type NoteCreate = z.infer<typeof NoteCreateSchema>;
 
@@ -116,6 +121,43 @@ export const AttachmentSchema = z.object({
   url: z.string().url(), // signed R2 URL
 });
 export type Attachment = z.infer<typeof AttachmentSchema>;
+
+// ─── Sync (delta) ───────────────────────────────────────────────────────────
+//
+// Powers the local SQLite cache on Mac/iOS clients. Clients call
+// GET /v1/sync?since=<ISO> and apply the response to their local store. The
+// `server_time` field is the cursor for the next call.
+
+export const TombstoneEntitySchema = z.enum(["note", "folder"]);
+export type TombstoneEntity = z.infer<typeof TombstoneEntitySchema>;
+
+export const TombstoneSchema = z.object({
+  entity: TombstoneEntitySchema,
+  id: IdSchema,
+  deleted_at: TimestampSchema,
+});
+export type Tombstone = z.infer<typeof TombstoneSchema>;
+
+export const SyncQuerySchema = z.object({
+  since: TimestampSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(2000).optional().default(500),
+});
+export type SyncQuery = z.infer<typeof SyncQuerySchema>;
+
+export const SyncResponseSchema = z.object({
+  notes: z.array(NoteSchema),
+  folders: z.array(FolderSchema),
+  tags: z.array(TagSchema),
+  deleted: z.array(TombstoneSchema),
+  // Cursor for the next call. Equals the largest updated_at/deleted_at this
+  // page actually returned (NOT now()) so a paused or paginated client can't
+  // skip changes that landed mid-request.
+  server_time: TimestampSchema,
+  // True if the page was capped at `limit`. Clients should re-issue with
+  // since=server_time until this is false.
+  truncated: z.boolean(),
+});
+export type SyncResponse = z.infer<typeof SyncResponseSchema>;
 
 // ─── Errors ─────────────────────────────────────────────────────────────────
 

@@ -123,17 +123,49 @@ app.patch("/:id", requireScope("write"), async (c) => {
   return c.json(row);
 });
 
-/** DELETE /v1/folders/:id — children cascade via FK; notes are SET NULL */
+/** DELETE /v1/folders/:id — children cascade via FK; notes are SET NULL.
+ *  Records a tombstone for the deleted folder and any cascaded children so
+ *  /v1/sync clients can drop them locally. We capture the descendant set
+ *  BEFORE the delete because afterwards the rows are gone. */
 app.delete("/:id", requireScope("write"), async (c) => {
   const id = c.req.param("id");
   if (!isValidId(id)) throw BadRequest("invalid_id", "invalid folder id");
   const user_id = c.var.auth.user_id;
+
+  // Walk the descendant tree so the tombstone set covers cascaded children.
+  const descendants: string[] = [id];
+  const queue: string[] = [id];
+  while (queue.length > 0) {
+    const placeholders = queue.map(() => "?").join(",");
+    const rows = await c.env.DB.prepare(
+      `SELECT id FROM folders
+         WHERE user_id = ? AND parent_id IN (${placeholders})`,
+    )
+      .bind(user_id, ...queue)
+      .all<{ id: string }>();
+    queue.length = 0;
+    for (const r of rows.results) {
+      descendants.push(r.id);
+      queue.push(r.id);
+    }
+  }
+
   const res = await c.env.DB.prepare(
     `DELETE FROM folders WHERE id = ? AND user_id = ?`,
   )
     .bind(id, user_id)
     .run();
   if (res.meta.changes === 0) throw NotFound("folder not found");
+
+  const now = new Date().toISOString();
+  const stmts = descendants.map((descId) =>
+    c.env.DB.prepare(
+      `INSERT OR REPLACE INTO tombstones (entity, id, user_id, deleted_at)
+       VALUES ('folder', ?, ?, ?)`,
+    ).bind(descId, user_id, now),
+  );
+  if (stmts.length > 0) await c.env.DB.batch(stmts);
+
   return c.body(null, 204);
 });
 

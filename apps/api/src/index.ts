@@ -9,6 +9,7 @@ import notes from "./routes/notes";
 import folders from "./routes/folders";
 import tags from "./routes/tags";
 import search from "./routes/search";
+import sync from "./routes/sync";
 import apiKeys from "./routes/api-keys";
 import oauth from "./routes/oauth";
 import { notesAttachments, attachmentsDownload } from "./routes/attachments";
@@ -47,6 +48,7 @@ app.route("/v1/notes", notesAttachments);
 app.route("/v1/folders", folders);
 app.route("/v1/tags", tags);
 app.route("/v1/search", search);
+app.route("/v1/sync", sync);
 app.route("/v1/api-keys", apiKeys);
 
 app.onError(errorHandler);
