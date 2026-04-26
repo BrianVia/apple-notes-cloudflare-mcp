@@ -236,16 +236,44 @@ final class AppModel: ObservableObject {
     /// Returns immediately after the local write so the UI can flip to
     /// "Saved" without waiting on the network. The PATCH runs in the
     /// background; failure surfaces via `errorMessage`.
+    ///
+    /// We derive the title client-side and pass it through to the store so
+    /// the list view's title cell updates instantly when the user edits the
+    /// first line. The server runs its own `deriveTitle` on PATCH, but its
+    /// response returns the *previous* title (the DO body flush is async,
+    /// ~2s delayed), so relying on the round-trip would leave the UI stale
+    /// until the next sync cycle.
     func saveBody(_ newBody: String, noteId: String? = nil) async {
         let id = noteId ?? selectedId
         guard let id else { return }
         do {
-            try await store.markDirty(noteId: id, body: newBody, title: nil)
+            let derivedTitle = AppModel.deriveTitle(from: newBody)
+            try await store.markDirty(noteId: id, body: newBody, title: derivedTitle)
             await reloadFromStore()
             schedulePush()
         } catch {
             errorMessage = "\(error)"
         }
+    }
+
+    /// Mirrors `apps/api/src/lib/derive-title.ts`. First non-empty line of
+    /// the body, with Markdown decorations stripped (`#` headings, `*`/`_`
+    /// emphasis, `~` strikethrough, `` ` `` inline code) so the list view
+    /// shows what the user will see rendered, not the raw markup. Capped
+    /// at 200 chars. Keep this in sync with the server — drift causes the
+    /// local cache and the DO flush to disagree on the same note's title.
+    static func deriveTitle(from body: String) -> String {
+        let strippableMarks: Set<Character> = ["*", "_", "~", "`"]
+        for rawLine in body.components(separatedBy: "\n") {
+            var line = rawLine
+            while line.first == "#" { line.removeFirst() }
+            line.removeAll { strippableMarks.contains($0) }
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return String(trimmed.prefix(200))
+            }
+        }
+        return "New Note"
     }
 
     // MARK: - Internals
