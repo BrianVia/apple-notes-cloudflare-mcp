@@ -8,6 +8,7 @@ import type { HonoBindings } from "../lib/env";
 import { newId, isValidId } from "../lib/ids";
 import { BadRequest, NotFound } from "../lib/errors";
 import { requireScope } from "../lib/auth";
+import { deriveTitle } from "../lib/derive-title";
 
 const app = new Hono<HonoBindings>();
 
@@ -451,13 +452,5 @@ app.get("/:id/ws", async (c) => {
     },
   });
 });
-
-function deriveTitle(body: string): string {
-  for (const line of body.split("\n")) {
-    const trimmed = line.replace(/^#+\s*/, "").trim();
-    if (trimmed) return trimmed.slice(0, 200);
-  }
-  return "New Note";
-}
 
 export default app;

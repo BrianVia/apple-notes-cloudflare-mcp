@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import type { Env } from "../lib/env";
+import { deriveTitle } from "../lib/derive-title";
 
 /**
  * NoteDO — one Durable Object per note.
@@ -315,15 +316,3 @@ export class NoteDO implements DurableObject {
   }
 }
 
-/**
- * Derive a title from markdown: first non-empty line, stripped of leading
- * markdown heading markers, capped at 200 chars. Matches Apple Notes'
- * "first line as title" behavior.
- */
-function deriveTitle(body: string): string {
-  for (const line of body.split("\n")) {
-    const trimmed = line.replace(/^#+\s*/, "").trim();
-    if (trimmed) return trimmed.slice(0, 200);
-  }
-  return "New Note";
-}
