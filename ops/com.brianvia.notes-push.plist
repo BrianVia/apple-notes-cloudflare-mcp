@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.brianvia.notes-push</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/bun</string>
+    <string>run</string>
+    <string>__NOTEKEEPER_DIR__/apps/cli/src/index.ts</string>
+    <string>push</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NK_API_URL</key>
+    <string>https://notekeeper-prod.brian-via.workers.dev</string>
+    <key>NK_API_TOKEN</key>
+    <string>__NK_API_TOKEN__</string>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/notes-push.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/notes-push.log</string>
+</dict>
+</plist>

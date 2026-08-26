@@ -14,24 +14,9 @@ importers:
 
   apps/api:
     dependencies:
-      '@notekeeper/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       hono:
         specifier: ^4.6.5
         version: 4.12.14
-      jose:
-        specifier: ^5.9.6
-        version: 5.10.0
-      nanoid:
-        specifier: ^5.0.7
-        version: 5.1.9
-      yjs:
-        specifier: ^13.6.20
-        version: 13.6.30
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20241022.0
@@ -45,9 +30,6 @@ importers:
 
   apps/cli:
     dependencies:
-      '@notekeeper/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@types/turndown':
         specifier: ^5.0.6
         version: 5.0.6
@@ -70,12 +52,6 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
-
-  packages/shared:
-    dependencies:
-      zod:
-        specifier: ^3.23.8
-        version: 3.25.76
 
 packages:
 
@@ -492,20 +468,9 @@ packages:
   is-arrayish@0.3.4:
     resolution: {integrity: sha512-m6UrgzFVUYawGBh1dUsWR5M2Clqic9RVXC/9f8ceNlv2IcO9j9J/z8UoCLPqtsPBFNzEpfR3xftohbfqDx8EQA==}
 
-  isomorphic.js@0.2.5:
-    resolution: {integrity: sha512-PIeMbHqMt4DnUP3MA/Flc0HElYjMXArsw1qwJZcm9sqR8mq3l8NYizFMty0pWwE/tzIGH3EKK5+jes5mAr85yw==}
-
-  jose@5.10.0:
-    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
-
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
-
-  lib0@0.2.117:
-    resolution: {integrity: sha512-DeXj9X5xDCjgKLU/7RR+/HQEVzuuEUiwldwOGsHK/sfAfELGWEyTcf0x+uOvCvK3O2zPmZePXWL85vtia6GyZw==}
-    engines: {node: '>=16'}
-    hasBin: true
 
   magic-string@0.25.9:
     resolution: {integrity: sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ==}
@@ -522,11 +487,6 @@ packages:
 
   mustache@4.2.0:
     resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
-    hasBin: true
-
-  nanoid@5.1.9:
-    resolution: {integrity: sha512-ZUvP7KeBLe3OZ1ypw6dI/TzYJuvHP77IM4Ry73waSQTLn8/g8rpdjfyVAh7t1/+FjBtG4lCP42MEbDxOsRpBMw==}
-    engines: {node: ^18 || >=20}
     hasBin: true
 
   ohash@2.0.11:
@@ -630,18 +590,11 @@ packages:
       utf-8-validate:
         optional: true
 
-  yjs@13.6.30:
-    resolution: {integrity: sha512-vv/9h42eCMC81ZHDFswuu/MKzkl/vyq1BhaNGfHyOonwlG4CJbQF4oiBBJPvfdeCt/PlVDWh7Nov9D34YY09uQ==}
-    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
-
   youch@3.3.4:
     resolution: {integrity: sha512-UeVBXie8cA35DS6+nBkls68xaBBXCye0CNznrhszZjTbRVnJKQuNsyLKBTTL4ln1o1rh2PKtv35twV7irj5SEg==}
 
   zod@3.22.3:
     resolution: {integrity: sha512-EjIevzuJRiRPbVH4mGc8nApb/lVLKVpmUhAaR5R5doKGfAnGJ6Gr3CViAVjP+4FWSxCsybeWQdcgCtbX+7oZug==}
-
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
 
@@ -948,15 +901,7 @@ snapshots:
   is-arrayish@0.3.4:
     optional: true
 
-  isomorphic.js@0.2.5: {}
-
-  jose@5.10.0: {}
-
   kleur@4.1.5: {}
-
-  lib0@0.2.117:
-    dependencies:
-      isomorphic.js: 0.2.5
 
   magic-string@0.25.9:
     dependencies:
@@ -982,8 +927,6 @@ snapshots:
       - utf-8-validate
 
   mustache@4.2.0: {}
-
-  nanoid@5.1.9: {}
 
   ohash@2.0.11: {}
 
@@ -1108,10 +1051,6 @@ snapshots:
 
   ws@8.18.0: {}
 
-  yjs@13.6.30:
-    dependencies:
-      lib0: 0.2.117
-
   youch@3.3.4:
     dependencies:
       cookie: 0.7.2
@@ -1119,5 +1058,3 @@ snapshots:
       stacktracey: 2.2.0
 
   zod@3.22.3: {}
-
-  zod@3.25.76: {}

@@ -9,10 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "noEmit": true,
-    "paths": {
-      "@notekeeper/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "noEmit": true
   },
-  "include": ["src/**/*", "../../packages/shared/src/**/*"]
+  "include": ["src/**/*"]
 }

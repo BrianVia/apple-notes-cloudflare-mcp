@@ -3,13 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.12.0",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*"],
   "scripts": {
     "dev:api": "pnpm --filter @notekeeper/api dev",
     "dev:cli": "pnpm --filter @notekeeper/cli dev",
     "deploy": "pnpm --filter @notekeeper/api deploy",
-    "migrate:local": "pnpm --filter @notekeeper/api migrate:local",
-    "migrate:prod": "pnpm --filter @notekeeper/api migrate:prod",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

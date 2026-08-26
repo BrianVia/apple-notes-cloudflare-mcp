@@ -7,17 +7,10 @@
     "dev": "wrangler dev --local --persist-to .wrangler",
     "deploy": "wrangler deploy",
     "deploy:prod": "wrangler deploy --env production",
-    "migrate:local": "wrangler d1 migrations apply notekeeper --local",
-    "migrate:prod": "wrangler d1 migrations apply notekeeper-prod --remote --env production",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@notekeeper/shared": "workspace:*",
-    "hono": "^4.6.5",
-    "jose": "^5.9.6",
-    "nanoid": "^5.0.7",
-    "yjs": "^13.6.20",
-    "zod": "^3.23.8"
+    "hono": "^4.6.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241022.0",

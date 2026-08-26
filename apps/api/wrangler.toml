@@ -1,59 +1,14 @@
 name = "notekeeper"
 main = "src/index.ts"
 compatibility_date = "2026-03-01"
-compatibility_flags = ["nodejs_compat"]
-
-# After you run `wrangler d1 create notekeeper`, paste the database_id here.
-[[d1_databases]]
-binding = "DB"
-database_name = "notekeeper"
-database_id = "2e5788eb-3592-48b0-a4db-d251ba460d66"
-migrations_dir = "../../migrations"
 
 [[kv_namespaces]]
-binding = "CACHE"
+binding = "NOTES"
 id = "f329bf44dae745c7a31d2ed5996ed179"
 
-[[r2_buckets]]
-binding = "ATTACHMENTS"
-bucket_name = "brianvia-notekeeper-attachments"
-
-# Durable Object — one instance per note. Handles Yjs sync over WebSocket
-# and periodically flushes markdown + metadata into D1.
-[[durable_objects.bindings]]
-name = "NOTE_DO"
-class_name = "NoteDO"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["NoteDO"]
-
-[vars]
-ENVIRONMENT = "development"
-# JWT signing secret — set via `wrangler secret put JWT_SECRET` for prod
-# ATTACHMENT_SIGNING_SECRET is also set as a secret
-
-# ───── Production environment ──────────────────────────────────────────────
 [env.production]
 name = "notekeeper-prod"
 
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "notekeeper-prod"
-database_id = "3a4ce9e5-e131-46a6-8890-ed003906c9e0"
-migrations_dir = "../../migrations"
-
 [[env.production.kv_namespaces]]
-binding = "CACHE"
+binding = "NOTES"
 id = "69db83dc707e4c7e95478a437a746631"
-
-[[env.production.r2_buckets]]
-binding = "ATTACHMENTS"
-bucket_name = "brianvia-notekeeper-attachments-prod"
-
-[[env.production.durable_objects.bindings]]
-name = "NOTE_DO"
-class_name = "NoteDO"
-
-[env.production.vars]
-ENVIRONMENT = "production"
