@@ -2,8 +2,15 @@ import type { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { exportAppleNotes, parseMarkdownFile } from "./cmd-apple-notes";
-import { success } from "./output";
+import { info, success } from "./output";
+
+// Last-pushed payload hash + timestamp; lets frequent cron runs skip the
+// upload entirely when nothing changed. Re-pushes anyway after 24h so the
+// mirror self-heals if the remote side ever loses data.
+const STATE_FILE = path.join(os.homedir(), ".config", "nk", "last-push.json");
+const MAX_SKIP_MS = 24 * 60 * 60 * 1000;
 
 function markdownFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -46,15 +53,27 @@ export function registerPushCommand(program: Command) {
           };
         });
 
+        const body = JSON.stringify(notes);
+        const hash = crypto.createHash("sha256").update(body).digest("hex");
+        try {
+          const state = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+          if (state.hash === hash && Date.now() - state.pushedAt < MAX_SKIP_MS) {
+            info("No changes since last push; skipping upload.");
+            return;
+          }
+        } catch { /* no/bad state file → push */ }
+
         const response = await fetch(`${apiUrl.replace(/\/+$/, "")}/notes`, {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify(notes),
+          body,
         });
         if (!response.ok) {
           throw new Error(`push failed (${response.status}): ${await response.text()}`);
         }
         const result = await response.json() as { count: number; skipped?: unknown[] };
+        fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+        fs.writeFileSync(STATE_FILE, JSON.stringify({ hash, pushedAt: Date.now() }));
         success(`Pushed ${result.count} notes${result.skipped?.length ? `; skipped ${result.skipped.length}` : ""}.`);
       } finally {
         process.off("exit", cleanup);

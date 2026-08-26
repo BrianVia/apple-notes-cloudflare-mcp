@@ -12,7 +12,7 @@
     <string>push</string>
   </array>
   <key>StartInterval</key>
-  <integer>1800</integer>
+  <integer>300</integer>
   <key>EnvironmentVariables</key>
   <dict>
     <key>NK_API_URL</key>
