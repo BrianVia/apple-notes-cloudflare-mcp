@@ -6,8 +6,18 @@ compatibility_date = "2026-03-01"
 binding = "NOTES"
 id = "f329bf44dae745c7a31d2ed5996ed179"
 
+# v1 created NoteDO (retired app); v2 deletes it and its stored objects.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NoteDO"]
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["NoteDO"]
+
 [env.production]
 name = "notekeeper-prod"
+routes = [{ pattern = "api.brianvia.com", custom_domain = true }]
 
 [[env.production.kv_namespaces]]
 binding = "NOTES"
