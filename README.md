@@ -17,7 +17,7 @@ All routes require `Authorization: Bearer <API_TOKEN>`.
 
 ## MCP
 
-Connect an MCP client to `https://api.brianvia.com/mcp` using the same bearer
+Connect an MCP client to `https://notes.brianvia.com/mcp` using the same bearer
 token. The stateless Streamable HTTP endpoint exposes two read-only tools:
 
 - `list_notes` returns the note index. Call it first.

@@ -17,7 +17,7 @@ deleted_classes = ["NoteDO"]
 
 [env.production]
 name = "notekeeper-prod"
-routes = [{ pattern = "api.brianvia.com", custom_domain = true }]
+routes = [{ pattern = "notes.brianvia.com", custom_domain = true }]
 
 [[env.production.kv_namespaces]]
 binding = "NOTES"

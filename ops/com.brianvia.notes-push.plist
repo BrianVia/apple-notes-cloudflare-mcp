@@ -16,7 +16,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>NK_API_URL</key>
-    <string>https://notekeeper-prod.brian-via.workers.dev</string>
+    <string>https://notes.brianvia.com</string>
     <key>NK_API_TOKEN</key>
     <string>__NK_API_TOKEN__</string>
   </dict>
