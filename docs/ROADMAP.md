@@ -1,4 +1,4 @@
-# notekeeper — Feature Backlog
+# apple-notes-cloudflare-mcp — Feature Backlog
 
 A working list of features that could be built on top of the v0.1 backend (Cloudflare Workers + D1 + R2 + Durable Objects + Yjs CRDT). Each entry includes the value proposition, the implementation sketch, and the rough cost/complexity.
 
@@ -27,7 +27,7 @@ These are deliberately **not yet** in `ROADMAP.md` — they're candidates for pr
 **Effort:** 200-300 lines on top of existing search route. ~1 weekend.
 
 ### 1b. QMD as sidecar
-- New CLI command: `nk export --qmd-collection ~/notekeeper-export`
+- New CLI command: `nk export --qmd-collection ~/apple-notes-cloudflare-mcp-export`
 - Pulls all notes as `.md` files to disk, registers as a QMD collection
 - User runs `qmd query` locally against the export
 - Doubles as **backup/portability story** — never locked in
@@ -83,7 +83,7 @@ These are deliberately **not yet** in `ROADMAP.md` — they're candidates for pr
 
 ## 4. Email-to-note
 
-**What it is.** A dedicated email address (e.g. `notes-{user_id}@notekeeper.app`) that ingests forwarded emails as new notes. Subject becomes title, body becomes markdown.
+**What it is.** A dedicated email address (e.g. `notes-{user_id}@notes.example.com`) that ingests forwarded emails as new notes. Subject becomes title, body becomes markdown.
 
 **Why it matters.** Inbox-zero workflow — forward any email worth keeping into your notes. Removes the friction of "I should save this somewhere".
 
@@ -96,7 +96,7 @@ These are deliberately **not yet** in `ROADMAP.md` — they're candidates for pr
 - Subject prefix `#tag` parsing: `Subject: #recipes Pasta carbonara` → tagged "recipes"
 
 **Quirks.**
-- Need DNS configured for `notekeeper.app` MX records pointing to Cloudflare
+- Need DNS configured for the chosen email domain with MX records pointing to Cloudflare
 - Need spam filtering (verify forwarder is the user — match `From:` against verified email)
 - Reply-to-thread: future enhancement, append to existing note
 
@@ -238,7 +238,7 @@ These are deliberately **not yet** in `ROADMAP.md` — they're candidates for pr
 
 **What it is.** Notify external systems on note events. `note.created`, `note.updated`, `note.deleted`, `note.shared`.
 
-**Why it matters.** Turns notekeeper into a building block for your other projects. Brian-Bot can react to new notes, SlackPipe can fan-out to a Slack channel, anything you build later can subscribe.
+**Why it matters.** Turns apple-notes-cloudflare-mcp into a building block for your other projects. Brian-Bot can react to new notes, SlackPipe can fan-out to a Slack channel, anything you build later can subscribe.
 
 **Implementation.**
 - New table: `webhooks (id, user_id, url, secret, events, active, created_at)`

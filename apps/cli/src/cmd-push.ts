@@ -31,7 +31,7 @@ export function registerPushCommand(program: Command) {
       if (!apiUrl) throw new Error("set NK_API_URL or pass --api-url");
       if (!token) throw new Error("set NK_API_TOKEN or pass --token");
 
-      const dumpDir = fs.mkdtempSync(path.join(os.tmpdir(), "notekeeper-"));
+      const dumpDir = fs.mkdtempSync(path.join(os.tmpdir(), "apple-notes-cloudflare-mcp-"));
       const cleanup = () => fs.rmSync(dumpDir, { recursive: true, force: true });
       process.once("exit", cleanup);
       try {

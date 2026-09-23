@@ -8,7 +8,7 @@
   <array>
     <string>/opt/homebrew/bin/bun</string>
     <string>run</string>
-    <string>__NOTEKEEPER_DIR__/apps/cli/src/index.ts</string>
+    <string>__APPLE_NOTES_CLOUDFLARE_MCP_DIR__/apps/cli/src/index.ts</string>
     <string>push</string>
   </array>
   <key>StartInterval</key>

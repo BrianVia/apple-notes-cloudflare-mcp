@@ -1,13 +1,13 @@
 {
-  "name": "notekeeper",
+  "name": "apple-notes-cloudflare-mcp",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.12.0",
   "workspaces": ["apps/*"],
   "scripts": {
-    "dev:api": "pnpm --filter @notekeeper/api dev",
-    "dev:cli": "pnpm --filter @notekeeper/cli dev",
-    "deploy": "pnpm --filter @notekeeper/api deploy",
+    "dev:api": "pnpm --filter @apple-notes-cloudflare-mcp/api dev",
+    "dev:cli": "pnpm --filter @apple-notes-cloudflare-mcp/cli dev",
+    "deploy": "pnpm --filter @apple-notes-cloudflare-mcp/api deploy",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

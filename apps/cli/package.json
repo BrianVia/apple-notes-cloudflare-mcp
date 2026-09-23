@@ -1,5 +1,5 @@
 {
-  "name": "@notekeeper/cli",
+  "name": "@apple-notes-cloudflare-mcp/cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {

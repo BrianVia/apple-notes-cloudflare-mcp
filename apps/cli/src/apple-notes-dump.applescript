@@ -23,7 +23,7 @@ on run argv
     set RS to character id 30
 
     set noteCount to 0
-    set outPath to "/tmp/notekeeper-notes-dump-" & (do shell script "date +%s")
+    set outPath to "/tmp/apple-notes-cloudflare-mcp-dump-" & (do shell script "date +%s")
     set fh to open for access (POSIX file outPath) with write permission
     set eof of fh to 0
 

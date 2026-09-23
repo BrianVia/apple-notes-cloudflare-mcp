@@ -16,7 +16,7 @@ import { info, success, die } from "./output";
 // source (not just Apple Notes) and feed it in.
 //
 //   <dir>/
-//   ├── .notekeeper-dump.json        # manifest: version + counts
+//   ├── .apple-notes-dump.json       # manifest: version + counts
 //   ├── <Folder Name>/               # mirrors folder tree 1:1
 //   │   └── <sub-folder>/
 //   │       └── <Note Title>.md
@@ -59,7 +59,7 @@ export interface NoteFrontmatter {
 export function registerAppleNotesCommands(program: Command) {
   program
     .command("export-apple-notes <output-dir>")
-    .description("Export Apple Notes.app into a notekeeper-dump directory")
+    .description("Export Apple Notes.app into an apple-notes dump directory")
     .option("--include-locked", "Attempt to include password-protected notes (will fail on any)")
     .option("--limit <n>", "Stop after N notes (for testing)", (v) => Number(v))
     .action(async (outDir: string, opts: { includeLocked?: boolean; limit?: number }) => {
@@ -161,7 +161,7 @@ export async function exportAppleNotes(
     folder_count: folderNames.size,
   };
   fs.writeFileSync(
-    path.join(absOut, ".notekeeper-dump.json"),
+    path.join(absOut, ".apple-notes-dump.json"),
     JSON.stringify(manifest, null, 2) + "\n",
     "utf8",
   );

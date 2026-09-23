@@ -9,7 +9,7 @@ export interface CliConfig {
 
 function configDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
-  return path.join(xdg || path.join(os.homedir(), ".config"), "notekeeper");
+  return path.join(xdg || path.join(os.homedir(), ".config"), "apple-notes-cloudflare-mcp");
 }
 
 function configPath(): string {
